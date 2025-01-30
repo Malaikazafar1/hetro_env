@@ -27,7 +27,7 @@ pip3 install sb3-contrib  # for TQC
 
 ### PID control for car and drone
 
-Please note that pid.py still need bug fixes. Currently, it can simulate single car with multiple (or single) drones with PID control
+Algorithm works for multiple cars and drones
 ```sh
 cd gym_pybullet_drones/simulation/
 python3 pid.py # position control 

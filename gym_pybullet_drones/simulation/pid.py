@@ -47,7 +47,7 @@ DEFAULT_CONTROL_FREQ_HZ = 48
 DEFAULT_DURATION_SEC = 150
 DEFAULT_OUTPUT_FOLDER = 'results'
 DEFAULT_COLAB = False
-DEFAULT_NUM_CARS = 1 # Default number of cars
+DEFAULT_NUM_CARS = 3 # Default number of cars
 
 def run(
         drone=DEFAULT_DRONES,
@@ -69,11 +69,7 @@ def run(
     # Initial positions, targets, and orientations for the cars ##############################cars
     INIT_XYZS_C = np.array([[i*2, i*2, 0] for i in range(NUM_CARS)])  # Example initial positions
     INIT_RPYS_C = np.array([[0, 0, 0] for _ in range(NUM_CARS)])  # Example initial orientations
-    # TARGET_POS_C = np.array([[-(i)*2, -(i)*2, 0] for i in range(NUM_CARS)])  # Example target positions
-    TARGET_POS_C = np.array([[0, 0, 0] for i in range(NUM_CARS)]) 
 
-    # Define car's waypoints for a straight line trajectory along x-axis
-    # PERIOD = 
     NUM_WP_CARS = 1000 #control_freq_hz*PERIOD  # Number of waypoints for cars along the trajectory
     TARGET_POS_CARS = np.zeros((NUM_WP_CARS, 3, NUM_CARS))  # 3D waypoints for each car
 
@@ -138,14 +134,21 @@ def run(
                         record=record_video,
                         obstacles=obstacles,
                         user_debug_gui=user_debug_gui,
-                        ##############################cars
                         NUM_CARS=NUM_CARS,  # Pass num_cars dynamically  
                         INIT_XYZS_C=INIT_XYZS_C,  # Using global car initial positions
                         INIT_RPYS_C=INIT_RPYS_C
                         )
     #### Obtain the PyBullet Client ID from the environment ####
     PYB_CLIENT = env.getPyBulletClient()
-    # env.target = np.array([[1,0,0]])#TARGET_POS_C
+
+    #### Initialize the initial target position for each car#################################
+
+    target_pos_car = []
+    for j in range(NUM_CARS):
+            target_pos_car1 = TARGET_POS_CARS[car_wp_counters[j], :, j]
+            target_pos_car.append(target_pos_car1.tolist())  # Append the target position as a list
+            env.target = np.array(target_pos_car)
+
     #### Initialize the logger #################################
     logger = Logger(logging_freq_hz=control_freq_hz,
                     num_drones=num_drones,
@@ -162,7 +165,7 @@ def run(
     
     #### Run the simulation ####################################
     action = np.zeros((num_drones,4))
-    env.target = np.array([[0,0,0]])
+    
     START = time.time()
     for i in range(0, int(duration_sec*env.CTRL_FREQ)):
 
@@ -170,11 +173,6 @@ def run(
         # if i/env.SIM_FREQ>5 and i%10==0 and i/env.SIM_FREQ<10: p.loadURDF("duck_vhacd.urdf", [0+random.gauss(0, 0.3),-0.5+random.gauss(0, 0.3),3], p.getQuaternionFromEuler([random.randint(0,360),random.randint(0,360),random.randint(0,360)]), physicsClientId=PYB_CLIENT)
 
         #### Step the simulation ###################################
-        # for j in range(NUM_CARS):
-        #     target_pos_car = TARGET_POS_CARS[car_wp_counters[j], :, j]
-        #     env.target = np.array([target_pos_car])
-        #     print(env.target)
-        #     car_wp_counters[j] = (car_wp_counters[j] + 1) % NUM_WP_CARS
 
         obs, reward, terminated, truncated, info = env.step(action)
         
@@ -191,10 +189,14 @@ def run(
         for j in range(num_drones):
             wp_counters[j] = wp_counters[j] + 1 if wp_counters[j] < (NUM_WP-1) else 0
         
-        for j in range(NUM_CARS):
-            target_pos_car = TARGET_POS_CARS[car_wp_counters[j], :, j]
-            env.target = np.array([target_pos_car])
-            print(env.target)
+        #### Go to the next way point and loop  for each car #####################
+        for counter in range(NUM_WP_CARS):
+            current_target_pos_car = []
+            # Loop through each car
+            for j in range(NUM_CARS):
+                target_pos_car1 = TARGET_POS_CARS[counter, :, j]
+                current_target_pos_car.append(target_pos_car1.tolist())  # Append the target position as a list
+            env.target = np.array(current_target_pos_car)
             car_wp_counters[j] = (car_wp_counters[j] + 1) % NUM_WP_CARS
 
         #### Log the simulation ####################################
